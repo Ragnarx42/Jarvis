@@ -31,6 +31,7 @@ async function isOllamaReachable(): Promise<boolean> {
 async function callOllama(prompt: string): Promise<string> {
   const res = await fetch(`${OLLAMA_HOST}/api/chat`, {
     method: "POST",
+    signal: AbortSignal.timeout(120_000),
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: MODEL,
@@ -100,7 +101,7 @@ ${synthesis}
 
 async function main() {
   const workersArg = process.argv.indexOf("--workers")
-  const concurrency = workersArg !== -1 ? parseInt(process.argv[workersArg + 1], 10) : 4
+  const concurrency = workersArg !== -1 ? parseInt(process.argv[workersArg + 1], 10) : 2
 
   if (!(await isOllamaReachable())) {
     console.log("NO_ACTION: Ollama unreachable")
