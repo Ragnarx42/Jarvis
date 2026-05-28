@@ -398,7 +398,9 @@ async function main() {
     }
   }
 
-  const cutoffStr = "2026-01-01"
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - 90)
+  const cutoffStr = cutoff.toISOString().slice(0, 10)
 
   console.log(`Streaming ${xmlPath} (from ${cutoffStr})…`)
   const days = await streamXml(xmlPath, cutoffStr)
