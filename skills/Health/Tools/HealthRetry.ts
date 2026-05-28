@@ -102,6 +102,8 @@ ${synthesis}
 async function main() {
   const workersArg = process.argv.indexOf("--workers")
   const concurrency = workersArg !== -1 ? parseInt(process.argv[workersArg + 1], 10) : 2
+  const limitArg = process.argv.indexOf("--limit")
+  const limit = limitArg !== -1 ? parseInt(process.argv[limitArg + 1], 10) : 14
 
   if (!(await isOllamaReachable())) {
     console.log("NO_ACTION: Ollama unreachable")
@@ -127,15 +129,17 @@ async function main() {
     return
   }
 
-  console.log(`Retrying ${pending.length} notes with ${concurrency} workers…`)
+  const batch = pending.slice(0, limit)
+  const remaining = pending.length - batch.length
+  console.log(`Retrying ${batch.length}/${pending.length} notes with ${concurrency} workers… (${remaining} deferred to next run)`)
 
   let retried = 0
   let failed = 0
   let index = 0
 
   async function worker() {
-    while (index < pending.length) {
-      const file = pending[index++]
+    while (index < batch.length) {
+      const file = batch[index++]
       const filePath = path.join(HEALTH_WIKI, file)
       try {
         await retryNote(filePath)
@@ -146,7 +150,7 @@ async function main() {
       }
       const completed = retried + failed
       if (completed % 10 === 0) {
-        console.log(`Progress: ${completed}/${pending.length} (${retried} ok, ${failed} failed)`)
+        console.log(`Progress: ${completed}/${batch.length} (${retried} ok, ${failed} failed)`)
       }
     }
   }
