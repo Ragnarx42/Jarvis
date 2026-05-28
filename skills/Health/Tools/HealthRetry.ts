@@ -31,7 +31,7 @@ async function isOllamaReachable(): Promise<boolean> {
 async function callOllama(prompt: string): Promise<string> {
   const res = await fetch(`${OLLAMA_HOST}/api/chat`, {
     method: "POST",
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(60_000),
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: MODEL,
