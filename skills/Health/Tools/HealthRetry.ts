@@ -99,6 +99,9 @@ ${synthesis}
 }
 
 async function main() {
+  const workersArg = process.argv.indexOf("--workers")
+  const concurrency = workersArg !== -1 ? parseInt(process.argv[workersArg + 1], 10) : 4
+
   if (!(await isOllamaReachable())) {
     console.log("NO_ACTION: Ollama unreachable")
     return
@@ -110,29 +113,40 @@ async function main() {
   }
 
   const files = await readdir(HEALTH_WIKI)
-  const candidates = files.filter(f => f.endsWith("_health-summary.md"))
-
-  let retried = 0
-  let failed = 0
-  for (const file of candidates) {
-    const filePath = path.join(HEALTH_WIKI, file)
-    const content = await readFile(filePath, "utf-8")
+  const pending: string[] = []
+  for (const file of files.filter(f => f.endsWith("_health-summary.md"))) {
+    const content = await readFile(path.join(HEALTH_WIKI, file), "utf-8")
     const needsRetry = content.includes("status: synthesis-pending") ||
       content.includes("Synthesis unavailable")
-    if (!needsRetry) continue
-    try {
-      await retryNote(filePath)
-      retried++
-    } catch (err: unknown) {
-      console.error(`Failed to retry ${file}: ${err instanceof Error ? err.message : err}`)
-      failed++
-    }
+    if (needsRetry) pending.push(file)
   }
 
-  if (retried === 0 && failed === 0) {
+  if (pending.length === 0) {
     console.log("NO_ACTION: no pending notes found")
     return
   }
+
+  console.log(`Retrying ${pending.length} notes with ${concurrency} workers…`)
+
+  let retried = 0
+  let failed = 0
+  let index = 0
+
+  async function worker() {
+    while (index < pending.length) {
+      const file = pending[index++]
+      const filePath = path.join(HEALTH_WIKI, file)
+      try {
+        await retryNote(filePath)
+        retried++
+      } catch (err: unknown) {
+        console.error(`Failed: ${file}: ${err instanceof Error ? err.message : err}`)
+        failed++
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, worker))
 
   console.log(`Retry complete: ${retried} synthesised, ${failed} failed`)
 }
