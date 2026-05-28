@@ -117,7 +117,9 @@ async function main() {
   for (const file of candidates) {
     const filePath = path.join(HEALTH_WIKI, file)
     const content = await readFile(filePath, "utf-8")
-    if (!content.includes("status: synthesis-pending")) continue
+    const needsRetry = content.includes("status: synthesis-pending") ||
+      content.includes("Synthesis unavailable")
+    if (!needsRetry) continue
     try {
       await retryNote(filePath)
       retried++
