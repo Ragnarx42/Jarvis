@@ -143,6 +143,10 @@ async function main() {
         console.error(`Failed: ${file}: ${err instanceof Error ? err.message : err}`)
         failed++
       }
+      const completed = retried + failed
+      if (completed % 10 === 0) {
+        console.log(`Progress: ${completed}/${pending.length} (${retried} ok, ${failed} failed)`)
+      }
     }
   }
 
