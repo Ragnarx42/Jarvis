@@ -1,0 +1,16 @@
+suite:
+  agent: health-agent
+  version: 1.0
+  cases:
+    - id: hrv-drop-detection
+      description: HRV drop >10% → moderate
+      input: minimal-export.xml
+      expected:
+        severity: moderate
+        latency_p99_ms: 2000
+    - id: hrv-stable
+      description: HRV stable → low
+      input: stable-export.xml
+      expected:
+        severity: low
+        latency_p99_ms: 2000

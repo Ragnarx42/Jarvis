@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HealthData>
+  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" sourceName="Apple Watch" startDate="2026-05-28 08:00:00 +0200" endDate="2026-05-28 08:00:00 +0200" value="52" unit="ms"/>
+  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" sourceName="Apple Watch" startDate="2026-05-27 08:00:00 +0200" endDate="2026-05-27 08:00:00 +0200" value="52" unit="ms"/>
+</HealthData>
