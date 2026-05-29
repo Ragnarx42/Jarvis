@@ -121,7 +121,8 @@ async function main() {
   for (const file of files.filter(f => f.endsWith("_health-summary.md"))) {
     const content = await readFile(path.join(HEALTH_WIKI, file), "utf-8")
     const needsRetry = content.includes("status: synthesis-pending") ||
-      content.includes("Synthesis unavailable")
+      content.includes("Synthesis unavailable") ||
+      content.includes("Test mode — synthesis skipped.")
     if (needsRetry) pending.push(file)
   }
 
