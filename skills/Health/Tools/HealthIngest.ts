@@ -48,6 +48,22 @@ type DayAccumulator = {
   steps: number
   active_energy: number
   respiratory_values: number[]
+  // Tier 1 — metabolic core
+  blood_glucose_values: number[]
+  basal_energy: number
+  body_mass: number | undefined
+  body_fat_pct: number | undefined
+  lean_body_mass: number | undefined
+  // Tier 2 — performance & recovery
+  exercise_minutes: number
+  flights_climbed: number
+  walking_speed_values: number[]
+  mindful_minutes: number
+  // Tier 3 — nutrition
+  dietary_protein: number
+  dietary_fat: number
+  dietary_carbs: number
+  dietary_calories: number
 }
 
 function makeDayAcc(): DayAccumulator {
@@ -61,6 +77,19 @@ function makeDayAcc(): DayAccumulator {
     steps: 0,
     active_energy: 0,
     respiratory_values: [],
+    blood_glucose_values: [],
+    basal_energy: 0,
+    body_mass: undefined,
+    body_fat_pct: undefined,
+    lean_body_mass: undefined,
+    exercise_minutes: 0,
+    flights_climbed: 0,
+    walking_speed_values: [],
+    mindful_minutes: 0,
+    dietary_protein: 0,
+    dietary_fat: 0,
+    dietary_carbs: 0,
+    dietary_calories: 0,
   }
 }
 
@@ -191,6 +220,128 @@ async function streamXml(xmlPath: string, cutoffStr: string): Promise<Map<string
         days.set(startDay, acc)
         break
       }
+      case "HKQuantityTypeIdentifierBloodGlucose": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val <= 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.blood_glucose_values.push(val)
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierBasalEnergyBurned": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val < 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.basal_energy += val
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierBodyMass": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val <= 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.body_mass = val
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierBodyFatPercentage": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "") * 100
+        if (isNaN(val) || val <= 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.body_fat_pct = val
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierLeanBodyMass": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val <= 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.lean_body_mass = val
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierAppleExerciseTime": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val < 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.exercise_minutes += val
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierFlightsClimbed": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val < 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.flights_climbed += val
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierWalkingSpeed": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val <= 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.walking_speed_values.push(val)
+        days.set(startDay, acc)
+        break
+      }
+      case "HKCategoryTypeIdentifierMindfulSession": {
+        const endDateFull = attr(line, "endDate")
+        if (!endDateFull) continue
+        const endDay = dateOnly(endDateFull)
+        if (endDay < cutoffStr) continue
+        const start = parseHealthDate(startDateFull)
+        const end = parseHealthDate(endDateFull)
+        const minutes = (end.getTime() - start.getTime()) / 60000
+        if (isNaN(minutes) || minutes <= 0) continue
+        const acc = days.get(endDay) ?? makeDayAcc()
+        acc.mindful_minutes += minutes
+        days.set(endDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierDietaryProtein": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val < 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.dietary_protein += val
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierDietaryFatTotal": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val < 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.dietary_fat += val
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierDietaryCarbohydrates": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val < 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.dietary_carbs += val
+        days.set(startDay, acc)
+        break
+      }
+      case "HKQuantityTypeIdentifierDietaryEnergyConsumed": {
+        if (startDay < cutoffStr) continue
+        const val = parseFloat(attr(line, "value") ?? "")
+        if (isNaN(val) || val < 0) continue
+        const acc = days.get(startDay) ?? makeDayAcc()
+        acc.dietary_calories += val
+        days.set(startDay, acc)
+        break
+      }
     }
   }
 
@@ -199,16 +350,50 @@ async function streamXml(xmlPath: string, cutoffStr: string): Promise<Map<string
 
 function buildMetricsSummary(date: string, acc: DayAccumulator): string {
   const lines: string[] = []
+
+  // Recovery & cardiovascular
   if (acc.hrv_values.length > 0) lines.push(`- HRV: ${median(acc.hrv_values).toFixed(1)} ms`)
   if (acc.resting_hr !== undefined) lines.push(`- Resting HR: ${acc.resting_hr} bpm`)
+  if (acc.respiratory_values.length > 0) lines.push(`- Respiratory rate: ${avg(acc.respiratory_values).toFixed(1)} breaths/min`)
+
+  // Sleep
   if (acc.sleep_minutes > 0) {
     lines.push(`- Sleep total: ${(acc.sleep_minutes / 60).toFixed(1)} h`)
     if (acc.sleep_deep_minutes > 0) lines.push(`- Deep sleep: ${(acc.sleep_deep_minutes / 60).toFixed(1)} h`)
     if (acc.sleep_rem_minutes > 0) lines.push(`- REM sleep: ${(acc.sleep_rem_minutes / 60).toFixed(1)} h`)
   }
+
+  // Metabolic
+  if (acc.blood_glucose_values.length > 0) {
+    const sorted = [...acc.blood_glucose_values].sort((a, b) => a - b)
+    const glAvg = avg(acc.blood_glucose_values)
+    const glMin = sorted[0]
+    const glMax = sorted[sorted.length - 1]
+    const inRange = acc.blood_glucose_values.filter(v => v >= 70 && v <= 140).length
+    const tir = Math.round((inRange / acc.blood_glucose_values.length) * 100)
+    lines.push(`- Blood glucose: avg ${glAvg.toFixed(0)} mg/dL, min ${glMin.toFixed(0)}, max ${glMax.toFixed(0)}, TIR 70-140: ${tir}%`)
+  }
+  if (acc.basal_energy > 0) lines.push(`- Basal energy: ${Math.round(acc.basal_energy)} kcal`)
+
+  // Body composition
+  if (acc.body_mass !== undefined) lines.push(`- Body mass: ${acc.body_mass.toFixed(1)} kg`)
+  if (acc.body_fat_pct !== undefined) lines.push(`- Body fat: ${acc.body_fat_pct.toFixed(1)}%`)
+  if (acc.lean_body_mass !== undefined) lines.push(`- Lean mass: ${acc.lean_body_mass.toFixed(1)} kg`)
+
+  // Activity
   if (acc.steps > 0) lines.push(`- Steps: ${Math.round(acc.steps).toLocaleString()}`)
   if (acc.active_energy > 0) lines.push(`- Active energy: ${Math.round(acc.active_energy)} kcal`)
-  if (acc.respiratory_values.length > 0) lines.push(`- Respiratory rate: ${avg(acc.respiratory_values).toFixed(1)} breaths/min`)
+  if (acc.exercise_minutes > 0) lines.push(`- Exercise time: ${Math.round(acc.exercise_minutes)} min`)
+  if (acc.flights_climbed > 0) lines.push(`- Flights climbed: ${Math.round(acc.flights_climbed)}`)
+  if (acc.walking_speed_values.length > 0) lines.push(`- Walking speed: ${(avg(acc.walking_speed_values) * 3.6).toFixed(1)} km/h`)
+  if (acc.mindful_minutes > 0) lines.push(`- Mindful time: ${Math.round(acc.mindful_minutes)} min`)
+
+  // Nutrition
+  if (acc.dietary_calories > 0) lines.push(`- Calories: ${Math.round(acc.dietary_calories)} kcal`)
+  if (acc.dietary_protein > 0) lines.push(`- Protein: ${acc.dietary_protein.toFixed(1)} g`)
+  if (acc.dietary_fat > 0) lines.push(`- Fat: ${acc.dietary_fat.toFixed(1)} g`)
+  if (acc.dietary_carbs > 0) lines.push(`- Carbs: ${acc.dietary_carbs.toFixed(1)} g`)
+
   return lines.join("\n") || "No standard metrics found for this date."
 }
 
