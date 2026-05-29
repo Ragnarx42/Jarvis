@@ -14,3 +14,18 @@ suite:
       expected:
         severity: low
         latency_p99_ms: 2000
+    - id: schema-compliance
+      description: Written note contains all required frontmatter fields
+      input: minimal-export.xml
+      expected:
+        severity: moderate
+        latency_p99_ms: 2000
+        schema_fields:
+          - date
+          - source
+          - metric_type
+          - value
+          - baseline
+          - delta
+          - trace_id
+          - confidence

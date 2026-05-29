@@ -16,6 +16,7 @@ import { writeFile, readFile, readdir, appendFile, mkdir } from "fs/promises"
 import { existsSync, mkdirSync, statSync } from "fs"
 import path from "path"
 import { updateIndex } from "./HealthUtils.ts"
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 
 const VAULT = process.env.VAULT_ROOT ?? `${process.env.HOME}/Brain`
 const HEALTH_RAW = `${VAULT}/04 Health/raw`
@@ -221,6 +222,43 @@ function convertToWikilinks(content: string): string {
   return frontmatter + converted
 }
 
+function normalizeWikiNote(
+  rawContent: string,
+  date: string,
+  metrics: Record<string, unknown>,
+  traceId: string
+): string {
+  const fmMatch = rawContent.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
+  let fm: Record<string, unknown> = {}
+  let body = rawContent
+
+  if (fmMatch) {
+    try { fm = (parseYaml(fmMatch[1]) as Record<string, unknown>) ?? {} } catch { fm = {} }
+    body = fmMatch[2]
+  }
+
+  if (!fm.date) fm.date = date
+  if (!fm.source) fm.source = metrics.source ?? 'apple_health'
+  if (!fm.metric_type) fm.metric_type = metrics.metric_type ?? 'hrv'
+  if (fm.value === undefined) fm.value = metrics.value ?? null
+  if (fm.baseline === undefined) fm.baseline = metrics.baseline ?? null
+  if (fm.delta === undefined) {
+    const v = fm.value as number | null
+    const b = fm.baseline as number | null
+    fm.delta = v !== null && b !== null ? parseFloat((v - b).toFixed(1)) : null
+  }
+  if (!fm.trace_id) fm.trace_id = traceId || null
+  if (!fm.confidence) fm.confidence = metrics.confidence ?? 'low'
+
+  const primaryValue = fm.value as number | null
+  const metricType = fm.metric_type as string
+  if (primaryValue !== null && !body.includes(String(primaryValue))) {
+    body = `${metricType}: ${primaryValue}\n\n${body}`
+  }
+
+  return `---\n${stringifyYaml(fm)}---\n${body}`
+}
+
 async function callOllama(prompt: string): Promise<string> {
   const res = await fetch(`${OLLAMA_HOST}/api/chat`, {
     method: "POST",
@@ -335,8 +373,18 @@ ${metricsSummary}
 ${synthesis}
 `
 
+  const primaryHrv = acc.hrv_values.length > 0 ? parseFloat(median(acc.hrv_values).toFixed(1)) : null
+  const metricsObj: Record<string, unknown> = {
+    source: xmlPath,
+    metric_type: acc.hrv_values.length > 0 ? 'hrv' : acc.sleep_minutes > 0 ? 'sleep' : 'steps',
+    value: primaryHrv,
+    baseline: null,
+    confidence: acc.hrv_values.length >= 5 ? 'high' : acc.hrv_values.length >= 1 ? 'medium' : 'low',
+  }
+  const normalizedNote = normalizeWikiNote(note, date, metricsObj, process.env.TRACE_ID ?? '')
+
   await mkdir(HEALTH_WIKI, { recursive: true })
-  await writeFile(wikiPath, note, "utf-8")
+  await writeFile(wikiPath, normalizedNote, "utf-8")
   await updateIndex(date, synthesis, VAULT)
   console.log(`Written: ${date}_health-summary.md`)
 
