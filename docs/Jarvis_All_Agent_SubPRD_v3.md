@@ -1,13 +1,20 @@
 ---
-version: "3.0"
+version: "3.1"
 status: draft
-date: 2026-06-01
+date: 2026-05-29
 parent_prd: "[[Jarvis PAI Foundation PRD v5]]"
 owner: Michael Wolff
 classification: Private
+changelog:
+  - version: "3.1"
+    date: 2026-05-29
+    changes: "Agent 1 bugs BUG-001 to BUG-006 resolved. Metric expansion to 20 Apple Health record types. CGM integrated via BloodGlucose records. Phase 1A deterministic implementation stable."
+  - version: "3.0"
+    date: 2026-06-01
+    changes: "Initial draft."
 ---
 
-# JARVIS — All-Agent Sub-PRD v3.0
+# JARVIS — All-Agent Sub-PRD v3.1
 
 ## Introduction
 
@@ -109,8 +116,8 @@ Router Agent has no actions on the hard gate list. No `@hardGate` decorators req
 | Domain | 04 Health |
 | Discord | #health |
 | Inference Routing | Local only. Ollama Qwen 3. No data leaves 127.0.0.1. |
-| Phase | 1 — Deterministic first. BUG-006 must be resolved before build starts. |
-| Readiness | Q1 partial, Q2 partial, Q3 partial, Q4 yes, Q5 missing. Fix before Phase 1 build. |
+| Phase | 1A complete. Deterministic implementation stable. Phase 1B (WHOOP, blood panels) deferred. |
+| Readiness | All five questions: YES. Phase 1A gates cleared. Regression 3/3, p99 51ms. |
 
 > See detailed success criteria in [[health-agent-success-criteria]]
 
@@ -120,11 +127,11 @@ Monitors the owner's physiological state, correlates signals across data sources
 
 ### Inputs
 
-- Apple Health JSON exports from iCloud Drive to `04 Health/raw/`.
+- Apple Health XML exports from iCloud Drive to `04 Health/raw/`. 20 record types parsed.
+- CGM blood glucose data via Apple Health BloodGlucose records (17k+ readings). Native integration, no separate API.
 - `health-agent-config.yaml` in `14 System/` for baseline thresholds.
-- WHOOP API — deferred to Phase 1 sub-build.
-- CGM provider API — deferred to Phase 1 sub-build.
-- Blood panel PDF exports — deferred to Phase 1 sub-build.
+- WHOOP API — deferred to Phase 1B.
+- Blood panel PDF exports — deferred to Phase 1B.
 
 ### Outputs
 
@@ -157,12 +164,12 @@ Monitors the owner's physiological state, correlates signals across data sources
 
 | ID | Severity | Description | Resolution Path |
 |---|---|---|---|
-| BUG-001 | HIGH | Ollama truncates on large exports. | bun/TypeScript pre-processor aggregates by metric type before Ollama. Resolves BUG-002. |
-| BUG-002 | MEDIUM | Inconsistent wiki schema. | Resolved by BUG-001 fix. |
-| BUG-003 | MEDIUM | wikilink integrity. | kepano enforcement in synthesis prompt plus post-write validator. |
-| BUG-004 | MEDIUM | iCloud sync latency. | File size stability check before ingest trigger. |
-| BUG-005 | LOW | Silent Ollama timeout. | Try/catch with backoff and #system alert. |
-| BUG-006 | HIGH | No deterministic success criteria. Blocks Phase 1. | See `14 System/docs/health-agent-success-criteria.md`. |
+| BUG-001 | ~~HIGH~~ RESOLVED | Ollama timeout on large backlogs. | Batch limiter: 14 notes per run, `--limit N` flag. HealthRetry drains queue in successive runs. |
+| BUG-002 | ~~MEDIUM~~ RESOLVED | Inconsistent wiki schema. | `normalizeWikiNote()` enforces 8 required frontmatter fields on every write. |
+| BUG-003 | ~~MEDIUM~~ RESOLVED | Wikilink integrity. | `convertToWikilinks()` runs post-synthesis, converts Markdown URLs to `[[wikilinks]]`. |
+| BUG-004 | ~~MEDIUM~~ RESOLVED | iCloud sync latency. | File size stability check (2 reads, 5s gap, 3 retries) before ingest. |
+| BUG-005 | ~~LOW~~ RESOLVED | Silent Ollama timeout. | 30s AbortSignal, exponential backoff (1s/2s/4s), placeholder note, queue alert. `think:false` reduces latency from 27s to 0.37s. |
+| BUG-006 | ~~HIGH~~ RESOLVED | No deterministic success criteria. | Success criteria doc written. Harness 3/3 passing. See `docs/health-agent-success-criteria.md`. |
 
 ### BUG-006 Success Criteria
 
@@ -191,7 +198,7 @@ Monitors the owner's physiological state, correlates signals across data sources
 - Use response caching for Ollama synthesis. First run live. Subsequent regression runs use cached responses keyed on `{input_hash, model_version}`.
 - 16 parallel workers for regression suite.
 - Deterministic test mode: mock vault I/O. Agent code runs unchanged.
-- Test fixtures: 10 Apple Health JSON samples of varying size (50 to 1000 entries).
+- Test fixtures: Apple Health XML files. Current suite: `minimal-export.xml` (HRV drop, expects moderate), `stable-export.xml` (HRV stable, expects low), `schema-compliance` (field presence check).
 
 ### Gate Implementation
 
